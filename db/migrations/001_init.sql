@@ -1,34 +1,49 @@
--- ==============================
--- HAKWallet - Initial Database
--- ==============================
+-- Enable UUID
+create extension if not exists "uuid-ossp";
 
-CREATE TABLE IF NOT EXISTS wallets (
-    id SERIAL PRIMARY KEY,
-    wallet_address TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+-- USERS
+create table users (
+  user_id uuid primary key default uuid_generate_v4(),
+  email varchar(255) not null unique,
+  password_hash varchar(255) not null,
+  is_2fa_enabled boolean default false,
+  status varchar(20) default 'active',
+  created_at timestamp default now()
 );
 
-CREATE TABLE IF NOT EXISTS tx_history (
-    id SERIAL PRIMARY KEY,
-    wallet_address TEXT NOT NULL,
-    tx_hash TEXT UNIQUE NOT NULL,
-    "from" TEXT,
-    "to" TEXT,
-    value_wei NUMERIC,
-    gas_used BIGINT,
-    gas_price BIGINT,
-    status TEXT,
-    block_number BIGINT,
-    timestamp TIMESTAMP
+-- WALLETS
+create table wallets (
+  wallet_id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(user_id) on delete cascade,
+  eth_address varchar(42) not null,
+  network varchar(20) not null,
+  is_default boolean default false,
+  created_at timestamp default now()
 );
 
-CREATE TABLE IF NOT EXISTS token_metadata (
-    token_address TEXT PRIMARY KEY,
-    symbol TEXT,
-    decimals INT,
-    name TEXT,
-    logo_url TEXT
+create unique index idx_wallet_address
+on wallets (eth_address, network);
+
+-- TRANSACTIONS
+create table transactions (
+  tx_hash varchar(66) primary key,
+  wallet_id uuid not null references wallets(wallet_id) on delete cascade,
+  from_address varchar(42) not null,
+  to_address varchar(42) not null,
+  value_eth numeric(36,18) not null,
+  gas_used bigint,
+  gas_price bigint,
+  status varchar(20),
+  block_number bigint,
+  timestamp timestamp
 );
 
-CREATE INDEX IF NOT EXISTS idx_tx_wallet
-ON tx_history(wallet_address);
+-- LOGIN HISTORY
+create table login_history (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references users(user_id) on delete cascade,
+  ip_address varchar(64),
+  device_info varchar(255),
+  login_time timestamp default now(),
+  is_success boolean
+);
