@@ -3,28 +3,22 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-# Load biến môi trường TRƯỚC
 load_dotenv()
 
-# Khởi tạo Flask app TRƯỚC
 app = Flask(__name__)
 CORS(app)
 
-# IMPORT blueprint SAU KHI app đã tồn tại
 from routes.auth_routes import auth_bp
 from routes.user_routes import user_bp
+from routes.wallet_routes import wallet_bp
 
-# Health check
-@app.route("/health", methods=["GET"])
+app.register_blueprint(auth_bp, url_prefix="/api/auth")
+app.register_blueprint(user_bp, url_prefix="/api/user")
+app.register_blueprint(wallet_bp, url_prefix="/api/wallets")
+
+@app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
-# Register blueprint
-app.register_blueprint(auth_bp, url_prefix="/api/auth")
-app.register_blueprint(user_bp, url_prefix="/api/user")
-
-# Run app
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    print(f"Backend running at http://127.0.0.1:{port}")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True)

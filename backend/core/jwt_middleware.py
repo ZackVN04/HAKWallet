@@ -1,39 +1,35 @@
-import jwt
-import os
 from functools import wraps
 from flask import request, jsonify
+from core.security import verify_token
 
-JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-key")
-
-def jwt_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
+def jwt_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        # Lấy Authorization header
         auth_header = request.headers.get("Authorization")
 
-        if not auth_header:
+        # Kiểm tra header tồn tại & đúng format
+        if not auth_header or not auth_header.startswith("Bearer "):
             return jsonify({
-                "error": "Missing Authorization header",
-                "status": 401
+                "error": "Missing or invalid Authorization header"
             }), 401
 
+        # Tách token
+        token = auth_header.split(" ")[1]
+
         try:
-            # Format: Bearer <token>
-            token = auth_header.split(" ")[1]
+            # Giải mã JWT
+            payload = verify_token(token)
 
-            payload = jwt.decode(
-                token,
-                JWT_SECRET,
-                algorithms=["HS256"]
-            )
-
-            # Gắn user_id vào request
+            # ✅ GẮN user_id VÀO REQUEST
             request.user_id = payload["user_id"]
 
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token expired"}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({"error": "Invalid token"}), 401
+        except Exception:
+            return jsonify({
+                "error": "Invalid or expired token"
+            }), 401
 
-        return f(*args, **kwargs)
+        # Cho request đi tiếp
+        return fn(*args, **kwargs)
 
-    return decorated
+    return wrapper
