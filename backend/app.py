@@ -11,10 +11,12 @@ CORS(app)
 from routes.auth_routes import auth_bp
 from routes.user_routes import user_bp
 from routes.wallet_routes import wallet_bp
+from routes.balance_routes import balance_bp
 
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 app.register_blueprint(user_bp, url_prefix="/api/user")
 app.register_blueprint(wallet_bp, url_prefix="/api/wallets")
+app.register_blueprint(balance_bp, url_prefix="/api/balance")
 
 @app.route("/health")
 def health():
