@@ -4,6 +4,9 @@ import os
 
 
 class WalletRepository:
+    """
+    Layer truy cập database cho wallet
+    """
 
     @staticmethod
     def get_connection():
@@ -42,7 +45,7 @@ class WalletRepository:
     @staticmethod
     def user_has_wallet(user_id):
         """
-        Check user đã có ví nào chưa
+        Check user đã có wallet nào chưa
         """
         conn = WalletRepository.get_connection()
         cur = conn.cursor()
@@ -88,3 +91,28 @@ class WalletRepository:
         conn.close()
 
         return wallet
+
+    @staticmethod
+    def get_wallets_by_user(user_id):
+        """
+        Lấy toàn bộ wallet của user
+        """
+        conn = WalletRepository.get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT wallet_id, eth_address, network, is_default, created_at
+            FROM wallets
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            """,
+            (user_id,)
+        )
+
+        wallets = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return wallets
