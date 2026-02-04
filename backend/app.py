@@ -3,21 +3,27 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-# CHỈ IMPORT CÁI ĐANG TỒN TẠI
-from routes.auth_routes import auth_bp
-
+# Load biến môi trường TRƯỚC
 load_dotenv()
 
+# Khởi tạo Flask app TRƯỚC
 app = Flask(__name__)
 CORS(app)
 
+# IMPORT blueprint SAU KHI app đã tồn tại
+from routes.auth_routes import auth_bp
+from routes.user_routes import user_bp
+
+# Health check
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
 
-# CHỈ REGISTER AUTH
+# Register blueprint
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
+app.register_blueprint(user_bp, url_prefix="/api/user")
 
+# Run app
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"Backend running at http://127.0.0.1:{port}")

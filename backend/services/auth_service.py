@@ -1,6 +1,6 @@
 import bcrypt
 from repositories.user_repository import UserRepository
-from core.security import verify_password
+from core.security import verify_password , generate_token
 class AuthService:
 
     @staticmethod
@@ -61,6 +61,13 @@ class AuthService:
                 "error": "Invalid password",
                 "status": 401
             }
+            
+        token = generate_token(str(user["user_id"]))
+        return {
+            "message": "Login success",
+            "token": token,
+            "status": 200
+        }
 
         return {
             "message": "Login success",

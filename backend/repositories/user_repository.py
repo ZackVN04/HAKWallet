@@ -56,4 +56,18 @@ class UserRepository:
         cur.close()
         conn.close()
 
-    # ❌ REMOVE __init__ → không dùng, gây nhầm lẫn
+    @staticmethod
+    def find_full_by_email(email):
+        conn = UserRepository.get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        cur.execute(
+            "SELECT user_id, password_hash FROM users WHERE email = %s",
+            (email,)
+        )
+
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+        return user
+

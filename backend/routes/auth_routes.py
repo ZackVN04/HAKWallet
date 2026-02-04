@@ -3,6 +3,9 @@ from services.auth_service import AuthService
 
 auth_bp = Blueprint("auth", __name__)
 
+# =========================
+# REGISTER
+# =========================
 @auth_bp.route("/register", methods=["POST"])
 def register():
     try:
@@ -16,13 +19,16 @@ def register():
         return jsonify(result), result["status"]
 
     except Exception as e:
+        # ❗ Giữ log lỗi server
         print("REGISTER ERROR:", e)
         return jsonify({
-            "error": str(e)
+            "error": "Internal server error"
         }), 500
 
 
-
+# =========================
+# LOGIN
+# =========================
 @auth_bp.route("/login", methods=["POST"])
 def login():
     try:
@@ -36,7 +42,8 @@ def login():
         return jsonify(result), result["status"]
 
     except Exception as e:
+        # ❗ UPDATED: chuẩn hóa log + response
         print("LOGIN ERROR:", e)
         return jsonify({
-            "error": str(e)
+            "error": "Internal server error"
         }), 500
