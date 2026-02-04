@@ -20,7 +20,6 @@ class WalletService {
     final seed = bip39.mnemonicToSeed(mnemonic.trim());
     final root = bip32.BIP32.fromSeed(seed);
 
-    // Ethereum BIP44 path
     final child = root.derivePath("m/44'/60'/0'/0/0");
 
     return EthPrivateKey(
@@ -34,8 +33,7 @@ class WalletService {
   }
 
   /// Get Ethereum address
-  static Future<EthereumAddress> getAddress(
-      EthPrivateKey privateKey) async {
+  static EthereumAddress getAddress(EthPrivateKey privateKey) {
     return privateKey.address;
   }
 

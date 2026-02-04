@@ -9,9 +9,11 @@ class ApiService {
     return response.statusCode == 200;
   }
 
-  static Future<String> getBalance(String address) async {
+  static Future<double> getBalance(String address) async {
     final url = Uri.parse(
-        "${AppConstants.backendBaseUrl}/balance/$address");
+      "${AppConstants.backendBaseUrl}/balance?address=$address",
+    );
+
     final response = await http.get(url);
 
     if (response.statusCode != 200) {
@@ -19,6 +21,23 @@ class ApiService {
     }
 
     final data = json.decode(response.body);
-    return data['balance'].toString();
+    return (data['balance'] as num).toDouble();
   }
+  static Future<String> sendRawTransaction(String rawTx) async {
+  final url = Uri.parse("${AppConstants.backendBaseUrl}/transaction/send");
+
+  final response = await http.post(
+    url,
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({"raw_tx": rawTx}),
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception("Failed to send transaction");
+  }
+
+  final data = jsonDecode(response.body);
+  return data["tx_hash"];
+}
+
 }

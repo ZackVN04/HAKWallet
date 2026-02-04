@@ -14,55 +14,109 @@ class VerifyMnemonicScreen extends StatefulWidget {
 class _VerifyMnemonicScreenState extends State<VerifyMnemonicScreen> {
   final TextEditingController _controller = TextEditingController();
   String? error;
+  bool loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final wallet = context.read<WalletProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify Mnemonic')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your 12-word recovery phrase',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
+      appBar: AppBar(
+        title: const Text('Verify Recovery Phrase'),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Confirm your recovery phrase',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Please re-enter your 12-word phrase to ensure you have backed it up correctly.',
+                      textAlign: TextAlign.center,
+                    ),
 
-            TextField(
-              controller: _controller,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'word1 word2 word3 ...',
-                errorText: error,
-                border: const OutlineInputBorder(),
+                    const SizedBox(height: 24),
+
+                    // ===== INPUT =====
+                    TextField(
+                      controller: _controller,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Recovery Phrase',
+                        hintText: 'word1 word2 word3 ...',
+                        errorText: error,
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ===== VERIFY BUTTON =====
+                    ElevatedButton(
+                      onPressed: loading
+                          ? null
+                          : () {
+                              setState(() {
+                                loading = true;
+                                error = null;
+                              });
+
+                              final isValid = wallet
+                                  .verifyMnemonic(
+                                      _controller.text);
+
+                              setState(() {
+                                loading = false;
+                              });
+
+                              if (isValid) {
+                                Navigator
+                                    .pushReplacementNamed(
+                                  context,
+                                  AppRoutes.home,
+                                );
+                              } else {
+                                setState(() {
+                                  error =
+                                      'Recovery phrase does not match';
+                                });
+                              }
+                            },
+                      child: loading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Confirm & Continue'),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () {
-                final isValid =
-                    wallet.verifyMnemonic(_controller.text);
-
-                if (isValid) {
-                  Navigator.pushReplacementNamed(
-                    context,
-                    AppRoutes.home,
-                  );
-                } else {
-                  setState(() {
-                    error = 'Mnemonic does not match';
-                  });
-                }
-              },
-              child: const Text('Verify'),
-            ),
-          ],
+          ),
         ),
       ),
     );

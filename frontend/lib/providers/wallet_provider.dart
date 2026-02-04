@@ -1,28 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:web3dart/web3dart.dart';
+
 import '../services/wallet_service.dart';
+import '../services/api_service.dart';
 import '../models/transaction_model.dart';
 
-
 class WalletProvider extends ChangeNotifier {
+  // ===== WALLET STATE =====
   String? mnemonic;
+  EthPrivateKey? _privateKey;
   EthereumAddress? address;
 
-  /// MOCK balance (ETH)
   double balance = 0.0;
+
+  // ===== TRANSACTIONS =====
+  List<TransactionModel> transactions = [];
 
   // ======================
   // CREATE WALLET
   // ======================
-  void createWallet() async {
+  void createWallet() {
     mnemonic = WalletService.generateMnemonic();
+    _privateKey = WalletService.privateKeyFromMnemonic(mnemonic!);
+    address = WalletService.getAddress(_privateKey!);
 
-    final privateKey =
-        WalletService.privateKeyFromMnemonic(mnemonic!);
-
-    address = await WalletService.getAddress(privateKey);
-
-    balance = 1.2345; // mock balance
+    _setMockBalance();
     notifyListeners();
   }
 
@@ -38,24 +40,15 @@ class WalletProvider extends ChangeNotifier {
   // IMPORT WALLET (MNEMONIC)
   // ======================
   Future<bool> importFromMnemonic(String input) async {
-    try {
-      if (!WalletService.isValidMnemonic(input)) {
-        return false;
-      }
+    if (!WalletService.isValidMnemonic(input)) return false;
 
-      mnemonic = input.trim();
+    mnemonic = input.trim();
+    _privateKey = WalletService.privateKeyFromMnemonic(mnemonic!);
+    address = WalletService.getAddress(_privateKey!);
 
-      final privateKey =
-          WalletService.privateKeyFromMnemonic(mnemonic!);
-
-      address = await WalletService.getAddress(privateKey);
-
-      balance = 1.0000; // mock
-      notifyListeners();
-      return true;
-    } catch (_) {
-      return false;
-    }
+    _setMockBalance();
+    notifyListeners();
+    return true;
   }
 
   // ======================
@@ -63,13 +56,11 @@ class WalletProvider extends ChangeNotifier {
   // ======================
   Future<bool> importFromPrivateKey(String hex) async {
     try {
-      final privateKey =
-          WalletService.privateKeyFromHex(hex);
+      _privateKey = WalletService.privateKeyFromHex(hex);
+      address = WalletService.getAddress(_privateKey!);
+      mnemonic = null;
 
-      address = await WalletService.getAddress(privateKey);
-
-      mnemonic = null; // unknown mnemonic
-      balance = 1.0000; // mock
+      _setMockBalance();
       notifyListeners();
       return true;
     } catch (_) {
@@ -78,23 +69,18 @@ class WalletProvider extends ChangeNotifier {
   }
 
   // ======================
-  // MOCK BALANCE
+  // BALANCE (MOCK → BACKEND)
   // ======================
-  void refreshBalanceMock() {
-    balance += 0.001;
+  void _setMockBalance() {
+    balance = 1.2345;
+  }
+
+  Future<void> fetchBalanceFromBackend() async {
+    if (address == null) return;
+    balance = await ApiService.getBalance(address.toString());
     notifyListeners();
   }
 
-  // ======================
-  // RESET WALLET
-  // ======================
-  void reset() {
-    mnemonic = null;
-    address = null;
-    balance = 0.0;
-    transactions.clear();
-    notifyListeners();
-  }
   // ======================
   // SEND ETH (MOCK)
   // ======================
@@ -102,13 +88,13 @@ class WalletProvider extends ChangeNotifier {
     required String toAddress,
     required double amount,
   }) async {
-    try {
-      if (address == null) return false;
-      if (amount <= 0) return false;
-      if (amount > balance) return false;
+    if (_privateKey == null || address == null) return false;
+    if (amount <= 0 || amount > balance) return false;
 
+    try {
       EthereumAddress.fromHex(toAddress);
 
+      // MOCK delay
       await Future.delayed(const Duration(seconds: 1));
 
       balance -= amount;
@@ -132,10 +118,20 @@ class WalletProvider extends ChangeNotifier {
   }
 
   // ======================
-  // TRANSACTION HISTORY
+  // RESET
   // ======================
-  List<TransactionModel> transactions = [];
+  void reset() {
+    mnemonic = null;
+    _privateKey = null;
+    address = null;
+    balance = 0.0;
+    transactions.clear();
+    notifyListeners();
+  }
 
+  // ======================
+  // MOCK TX HASH
+  // ======================
   String _mockTxHash() {
     const chars = 'abcdef0123456789';
     return '0x' +
@@ -144,9 +140,12 @@ class WalletProvider extends ChangeNotifier {
           (i) => chars[(DateTime.now().millisecondsSinceEpoch + i) % chars.length],
         ).join();
   }
+  // ======================
+// MOCK BALANCE (FOR DEMO)
+// ======================
+void refreshBalanceMock() {
+  balance += 0.001;
+  notifyListeners();
+}
 
-  // ======================
-  // FUTURE: BACKEND
-  // ======================
-  /// Future<void> fetchBalanceFromBackend()
 }

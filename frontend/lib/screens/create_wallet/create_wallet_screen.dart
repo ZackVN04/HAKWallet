@@ -11,85 +11,151 @@ class CreateWalletScreen extends StatelessWidget {
     final wallet = context.watch<WalletProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Wallet')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: wallet.mnemonic == null
-            ? _buildCreate(context)
-            : _buildResult(context, wallet),
+      appBar: AppBar(
+        title: const Text('Create Wallet'),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: wallet.mnemonic == null
+                ? _buildCreate(context)
+                : _buildResult(context, wallet),
+          ),
+        ),
       ),
     );
   }
 
-Widget _buildCreate(BuildContext context) {
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      ElevatedButton(
-        onPressed: () {
-          context.read<WalletProvider>().createWallet();
-        },
-        child: const Text('Create New Wallet'),
+  // ======================
+  // STEP 1: CREATE
+  // ======================
+  Widget _buildCreate(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Create a new wallet',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'This wallet is non-custodial.\nYou are responsible for your recovery phrase.',
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 32),
+
+            ElevatedButton(
+              onPressed: () {
+                context.read<WalletProvider>().createWallet();
+              },
+              child: const Text('Create New Wallet'),
+            ),
+
+            const SizedBox(height: 16),
+
+            OutlinedButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.importWallet,
+                );
+              },
+              child: const Text('Import Existing Wallet'),
+            ),
+          ],
+        ),
       ),
+    );
+  }
 
-      const SizedBox(height: 16),
-
-      OutlinedButton(
-        onPressed: () {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.importWallet,
-          );
-        },
-        child: const Text('Import Existing Wallet'),
-      ),
-    ],
-  );
-}
-
+  // ======================
+  // STEP 2: MNEMONIC
+  // ======================
   Widget _buildResult(BuildContext context, WalletProvider wallet) {
     final words = wallet.mnemonic!.split(' ');
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '⚠️ Backup your mnemonic phrase',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(
-              words.length,
-              (i) => Chip(label: Text('${i + 1}. ${words[i]}')),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '⚠️ Backup your recovery phrase',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            const Text(
+              'Write down these 12 words in order and keep them safe.',
+            ),
 
-          const SizedBox(height: 24),
-          const Text('Wallet Address'),
-          const SizedBox(height: 8),
+            const SizedBox(height: 20),
 
-          SelectableText(
-            wallet.address!.hex,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+            // ===== MNEMONIC GRID =====
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: words.length,
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 3,
+              ),
+              itemBuilder: (_, i) {
+                return Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    '${i + 1}. ${words[i]}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                );
+              },
+            ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.verifyMnemonic,
-              );
-            },
-            child: const Text("I've backed up my phrase"),
-          ),
-        ],
+            const Text(
+              'Wallet Address',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            SelectableText(
+              wallet.address!.hex,
+              style: const TextStyle(fontSize: 13),
+            ),
+
+            const SizedBox(height: 32),
+
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.verifyMnemonic,
+                );
+              },
+              child: const Text("I've backed up my phrase"),
+            ),
+          ],
+        ),
       ),
     );
   }
