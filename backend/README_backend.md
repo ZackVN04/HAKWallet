@@ -41,3 +41,77 @@ venv\Scripts\activate
 
 pip install -r requirements.txt
 
+
+
+
+
+1️⃣ fastapi
+
+👉 Framework backend chính
+👉 Dùng để tạo API (@app.post, APIRouter, …)
+
+pip install fastapi
+
+2️⃣ uvicorn
+
+👉 Server để chạy FastAPI
+👉 Thiếu nó thì backend không chạy được (lỗi bạn đang gặp)
+
+pip install uvicorn
+
+3️⃣ psycopg2-binary
+
+👉 Kết nối PostgreSQL (Supabase)
+👉 Dùng cho DB_URL=postgresql://...
+
+pip install psycopg2-binary
+
+4️⃣ bcrypt
+
+👉 Mã hóa mật khẩu
+👉 Register / Login đều cần
+
+pip install bcrypt
+
+5️⃣ python-dotenv
+
+👉 Đọc file .env
+👉 Lấy DB_URL, ALCHEMY_URL
+
+pip install python-dotenv
+
+✅ LỆNH CÀI GỘP (KHUYẾN NGHỊ)
+
+Chạy 1 lệnh duy nhất (đang ở (venv)):
+
+pip install fastapi uvicorn psycopg2-binary bcrypt python-dotenv
+
+📄 requirements.txt CHUẨN (NÊN CÓ)
+
+Mở backend/requirements.txt, ghi đúng:
+
+fastapi
+uvicorn
+psycopg2-binary
+bcrypt
+python-dotenv
+
+
+Sau này chỉ cần:
+
+pip install -r requirements.txt
+
+🔍 KIỂM TRA ĐÃ CÀI CHƯA
+pip list
+
+
+Hoặc kiểm tra từng cái:
+
+pip show fastapi
+pip show uvicorn
+pip show psycopg2-binary
+pip show bcrypt
+pip show python-dotenv
+
+▶️ CHẠY BACKEND (NHỚ DÒNG NÀY)
+python -m uvicorn app:app --reload
