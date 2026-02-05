@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../core/routes.dart';
 import '../../widgets/responsive_layout.dart';
+import '../../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -53,26 +54,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Non-custodial Ethereum wallet',
                     textAlign: TextAlign.center,
                   ),
-
                   const SizedBox(height: 32),
 
                   TextField(
                     controller: _email,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Email'),
                   ),
-
                   const SizedBox(height: 16),
 
                   TextField(
                     controller: _password,
                     obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Password'),
                   ),
-
                   const SizedBox(height: 24),
 
                   if (error != null)
@@ -99,22 +93,46 @@ class _LoginScreenState extends State<LoginScreen> {
                               _password.text,
                             );
 
+                            if (!mounted) return;
+
                             setState(() {
                               loading = false;
                             });
 
-                            if (ok) {
-                              /// ⚠️ TẠM THỜI:
-                              /// chưa có GET /wallets
-                              /// → luôn đi create/import
+                            if (!ok) {
+                              setState(() {
+                                error = 'Invalid credentials';
+                              });
+                              return;
+                            }
+
+                            // 🔑 Token đã được set trong UserProvider
+                            final token = user.token;
+                            if (token == null) {
+                              setState(() {
+                                error = 'Authentication error';
+                              });
+                              return;
+                            }
+
+                            // 🔎 CHECK USER WALLETS
+                            final wallets =
+                                await ApiService.getUserWallets(token);
+
+                            if (!mounted) return;
+
+                            if (wallets.isNotEmpty) {
+                              // ✅ Có ví → vào HOME
+                              Navigator.pushReplacementNamed(
+                                context,
+                                AppRoutes.home,
+                              );
+                            } else {
+                              // ❌ Chưa có ví → CREATE WALLET
                               Navigator.pushReplacementNamed(
                                 context,
                                 AppRoutes.createWallet,
                               );
-                            } else {
-                              setState(() {
-                                error = 'Invalid credentials';
-                              });
                             }
                           },
                     child: loading

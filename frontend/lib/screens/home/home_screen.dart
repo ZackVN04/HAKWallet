@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../core/routes.dart';
 import '../../widgets/responsive_layout.dart';
 
@@ -18,13 +19,22 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              wallet.refreshBalanceMock();
+              final token = context.read<UserProvider>().token;
+
+              if (token == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('User not authenticated'),
+                  ),
+                );
+                return;
+              }
+
+              wallet.fetchBalanceFromBackend(token);
             },
           ),
         ],
       ),
-
-      // ✅ body nằm TRONG Scaffold
       body: ResponsiveLayout(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -40,9 +50,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ======================
-  // HERO BALANCE CARD
-  // ======================
   Widget _balanceCard(BuildContext context, WalletProvider wallet) {
     return Card(
       elevation: 3,
@@ -69,26 +76,9 @@ class HomeScreen extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const Divider(height: 32),
-            Row(
-              children: [
-                Expanded(
-                  child: SelectableText(
-                    wallet.address?.hex ?? '',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy, size: 18),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Address copied'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                ),
-              ],
+            SelectableText(
+              wallet.address?.hex ?? '',
+              style: const TextStyle(fontSize: 12),
             ),
           ],
         ),
@@ -96,9 +86,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ======================
-  // QUICK ACTIONS
-  // ======================
   Widget _quickActions(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -107,25 +94,19 @@ class HomeScreen extends StatelessWidget {
           context,
           icon: Icons.send,
           label: 'Send',
-          onTap: () {
-            Navigator.pushNamed(context, AppRoutes.send);
-          },
+          onTap: () => Navigator.pushNamed(context, AppRoutes.send),
         ),
         _actionButton(
           context,
           icon: Icons.history,
           label: 'History',
-          onTap: () {
-            Navigator.pushNamed(context, AppRoutes.history);
-          },
+          onTap: () => Navigator.pushNamed(context, AppRoutes.history),
         ),
         _actionButton(
           context,
           icon: Icons.settings,
           label: 'Settings',
-          onTap: () {
-            Navigator.pushNamed(context, AppRoutes.settings);
-          },
+          onTap: () => Navigator.pushNamed(context, AppRoutes.settings),
         ),
       ],
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../providers/user_provider.dart';
 
 class SendScreen extends StatefulWidget {
   const SendScreen({super.key});
@@ -69,8 +70,9 @@ class _SendScreenState extends State<SendScreen> {
                     // ===== AMOUNT =====
                     TextField(
                       controller: _amountController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Amount (ETH)',
                       ),
@@ -83,16 +85,29 @@ class _SendScreenState extends State<SendScreen> {
                       onPressed: loading
                           ? null
                           : () async {
+                              final token =
+                                  context.read<UserProvider>().token;
+
+                              // ⛔ FIX NULL-SAFETY Ở ĐÂY
+                              if (token == null) {
+                                setState(() {
+                                  error = 'User not authenticated';
+                                });
+                                return;
+                              }
+
                               setState(() {
                                 loading = true;
                                 error = null;
                               });
 
-                              final ok = await wallet.sendEth(
+                              final ok =
+                                  await wallet.sendEthViaBackend(
                                 toAddress: _toController.text,
                                 amount: double.tryParse(
                                         _amountController.text) ??
                                     0,
+                                token: token, // ✅ String (non-null)
                               );
 
                               setState(() {

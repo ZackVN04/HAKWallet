@@ -7,49 +7,33 @@ import '../models/transaction_model.dart';
 
 /// ===============================
 /// WALLET PROVIDER
-/// Quản lý toàn bộ state của ví
-/// - Non-custodial (private key ở client)
-/// - Backend chỉ lưu address + user_id
+/// - Non-custodial
+/// - Private key LUÔN ở client
+/// - Backend chỉ lưu address + relay tx
 /// ===============================
 class WalletProvider extends ChangeNotifier {
   // ===== WALLET STATE =====
-
-  /// Mnemonic phrase (chỉ tồn tại ở frontend)
   String? mnemonic;
-
-  /// Private key (KHÔNG BAO GIỜ gửi backend)
   EthPrivateKey? _privateKey;
-
-  /// Địa chỉ ví Ethereum
   EthereumAddress? address;
 
-  /// Số dư ETH
+  /// Balance ETH (lấy từ backend)
   double balance = 0.0;
 
   // ===== TRANSACTIONS =====
-
-  /// Lịch sử giao dịch (hiện đang mock)
   List<TransactionModel> transactions = [];
 
   // ======================
   // CREATE WALLET
   // ======================
-  /// Tạo ví mới từ mnemonic
-  /// Nếu có token → lưu wallet vào backend
   void createWallet({String? token}) {
-    // 1️⃣ Generate mnemonic
     mnemonic = WalletService.generateMnemonic();
-
-    // 2️⃣ Tạo private key từ mnemonic
     _privateKey = WalletService.privateKeyFromMnemonic(mnemonic!);
-
-    // 3️⃣ Lấy địa chỉ ví
     address = WalletService.getAddress(_privateKey!);
 
-    // 4️⃣ Set balance mock (sẽ thay bằng backend sau)
+    // Mock ban đầu
     _setMockBalance();
 
-    // 5️⃣ LƯU WALLET VÀO BACKEND (nếu đã login)
     if (token != null) {
       saveWalletToBackend(token);
     }
@@ -60,17 +44,14 @@ class WalletProvider extends ChangeNotifier {
   // ======================
   // VERIFY MNEMONIC
   // ======================
-  /// Kiểm tra mnemonic user nhập lại có đúng không
   bool verifyMnemonic(String input) {
     if (mnemonic == null) return false;
     return mnemonic!.trim() == input.trim();
   }
 
   // ======================
-  // IMPORT WALLET (MNEMONIC)
+  // IMPORT WALLET
   // ======================
-  /// Import ví từ mnemonic
-  /// Backend chỉ lưu address
   Future<bool> importFromMnemonic(
     String input, {
     String? token,
@@ -83,7 +64,6 @@ class WalletProvider extends ChangeNotifier {
 
     _setMockBalance();
 
-    // Lưu wallet vào backend
     if (token != null) {
       await saveWalletToBackend(token);
     }
@@ -92,11 +72,6 @@ class WalletProvider extends ChangeNotifier {
     return true;
   }
 
-  // ======================
-  // IMPORT WALLET (PRIVATE KEY)
-  // ======================
-  /// Import ví từ private key
-  /// ⚠️ mnemonic sẽ NULL (không recover được)
   Future<bool> importFromPrivateKey(
     String hex, {
     String? token,
@@ -108,7 +83,6 @@ class WalletProvider extends ChangeNotifier {
 
       _setMockBalance();
 
-      // Lưu wallet vào backend
       if (token != null) {
         await saveWalletToBackend(token);
       }
@@ -123,8 +97,6 @@ class WalletProvider extends ChangeNotifier {
   // ======================
   // SAVE WALLET → BACKEND
   // ======================
-  /// Gọi POST /api/wallets
-  /// Backend sẽ gắn wallet với user_id từ JWT
   Future<void> saveWalletToBackend(String token) async {
     if (address == null) return;
 
@@ -136,68 +108,89 @@ class WalletProvider extends ChangeNotifier {
   }
 
   // ======================
-  // BALANCE (MOCK → BACKEND)
+  // BALANCE
   // ======================
-  /// MOCK balance (demo)
   void _setMockBalance() {
     balance = 1.2345;
   }
 
-  /// 🔜 SẼ DÙNG THẬT
   /// GET /api/balance/:address
-  Future<void> fetchBalanceFromBackend() async {
+  Future<void> fetchBalanceFromBackend(String token) async {
     if (address == null) return;
 
-    balance = await ApiService.getBalance(address!.hex);
+    balance = await ApiService.getBalance(
+      token: token,
+      address: address!.hex,
+    );
+
     notifyListeners();
   }
 
   // ======================
-  // SEND ETH (HIỆN MOCK)
+  // SEND ETH (BACKEND THẬT)
   // ======================
-  /// Gửi ETH (demo)
-  /// 🔜 Sau này:
-  /// - Frontend ký tx
-  /// - Gửi raw_tx lên backend
-  Future<bool> sendEth({
+  /// Frontend ký transaction
+  /// Backend chỉ relay raw_tx
+  Future<bool> sendEthViaBackend({
     required String toAddress,
     required double amount,
+    required String token,
   }) async {
     if (_privateKey == null || address == null) return false;
     if (amount <= 0 || amount > balance) return false;
 
     try {
-      // Validate address
-      EthereumAddress.fromHex(toAddress);
+      // 1️⃣ Validate address
+      final to = EthereumAddress.fromHex(toAddress);
 
-      // MOCK delay
-      await Future.delayed(const Duration(seconds: 1));
+      // 2️⃣ Build transaction
+      final tx = Transaction(
+        to: to,
+        value: EtherAmount.fromUnitAndValue(
+          EtherUnit.ether,
+          amount,
+        ),
+        gasPrice: EtherAmount.inWei(BigInt.from(20 * 1e9)),
+        maxGas: 21000,
+      );
 
+      // 3️⃣ SIGN TX (NON-CUSTODIAL CORE)
+      final rawTx = await WalletService.signTransaction(
+        privateKey: _privateKey!,
+        transaction: tx,
+      );
+
+      // 4️⃣ Send raw_tx → backend
+      final txHash = await ApiService.sendRawTransaction(
+        token: token,
+        rawTx: rawTx,
+      );
+
+      // 5️⃣ Update local state (demo)
       balance -= amount;
 
-      // Thêm transaction mock
       transactions.insert(
         0,
         TransactionModel(
-          txHash: _mockTxHash(),
+          txHash: txHash,
           toAddress: toAddress,
           valueEth: amount,
-          status: 'success',
+          status: 'pending',
           timestamp: DateTime.now(),
         ),
       );
 
       notifyListeners();
       return true;
-    } catch (_) {
+    } catch (e) {
+      print("SEND TX ERROR: $e");
       return false;
     }
   }
 
   // ======================
-  // RESET WALLET (LOGOUT)
+  // RESET (LOGOUT)
   // ======================
-  /// Clear toàn bộ state khi logout
   void reset() {
     mnemonic = null;
     _privateKey = null;
@@ -206,25 +199,22 @@ class WalletProvider extends ChangeNotifier {
     transactions.clear();
     notifyListeners();
   }
+  // ======================
+// TRANSACTION HISTORY
+// ======================
+Future<void> fetchTransactionHistory(String token) async {
+  if (address == null) return;
 
-  // ======================
-  // MOCK TX HASH
-  // ======================
-  String _mockTxHash() {
-    const chars = 'abcdef0123456789';
-    return '0x' +
-        List.generate(
-          64,
-          (i) =>
-              chars[(DateTime.now().millisecondsSinceEpoch + i) % chars.length],
-        ).join();
-  }
+  transactions = await ApiService.getTransactionHistory(
+    token: token,
+    address: address!.hex,
+  );
 
-  // ======================
-  // DEMO: REFRESH BALANCE
-  // ======================
-  void refreshBalanceMock() {
-    balance += 0.001;
-    notifyListeners();
-  }
+  notifyListeners();
 }
+
+}
+
+
+
+
