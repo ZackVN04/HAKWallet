@@ -2,6 +2,9 @@ from repositories.wallet_repository import WalletRepository
 
 
 class WalletService:
+    """
+    Layer xử lý nghiệp vụ liên quan wallet
+    """
 
     @staticmethod
     def create_wallet(user_id, eth_address, network):
@@ -9,18 +12,18 @@ class WalletService:
         Xử lý nghiệp vụ tạo wallet
         """
 
-        # 1️ Validate dữ liệu
+        # Validate dữ liệu đầu vào
         if not eth_address or not network:
             return {
                 "error": "Missing eth_address or network",
                 "status": 400
             }
 
-        # 2️ Chuẩn hóa dữ liệu
+        # Chuẩn hóa dữ liệu
         eth_address = eth_address.lower().strip()
         network = network.lower().strip()
 
-        # 3️ Check ví đã tồn tại chưa (address + network)
+        # Check trùng wallet theo address + network
         existing = WalletRepository.find_by_address_and_network(
             eth_address, network
         )
@@ -31,13 +34,13 @@ class WalletService:
                 "status": 409
             }
 
-        # 4️ Check user đã có ví nào chưa
+        # Check user đã có wallet chưa
         has_wallet = WalletRepository.user_has_wallet(user_id)
 
-        # Nếu user chưa có ví nào → set default
+        # Wallet đầu tiên của user sẽ là default
         is_default = not has_wallet
 
-        # 5️ Insert wallet
+        # Insert wallet vào DB
         wallet = WalletRepository.create_wallet(
             user_id=user_id,
             eth_address=eth_address,
@@ -45,9 +48,22 @@ class WalletService:
             is_default=is_default
         )
 
-        # 6️ Trả kết quả
         return {
             "message": "Wallet saved successfully",
             "wallet": wallet,
             "status": 201
+        }
+
+    @staticmethod
+    def get_user_wallets(user_id):
+        """
+        Lấy danh sách wallet của user
+        """
+
+        # Gọi repository lấy dữ liệu từ DB
+        wallets = WalletRepository.get_wallets_by_user(user_id)
+
+        # Trả về list wallet (có thể rỗng)
+        return {
+            "wallets": wallets
         }
