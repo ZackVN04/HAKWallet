@@ -34,15 +34,19 @@ def login():
     try:
         data = request.get_json()
 
+        ip = request.remote_addr
+        ua = request.headers.get("User-Agent")
+
         result = AuthService.login(
             email=data.get("email"),
-            password=data.get("password")
+            password=data.get("password"),
+            ip=ip,
+            ua=ua
         )
 
         return jsonify(result), result["status"]
 
     except Exception as e:
-        # ❗ UPDATED: chuẩn hóa log + response
         print("LOGIN ERROR:", e)
         return jsonify({
             "error": "Internal server error"

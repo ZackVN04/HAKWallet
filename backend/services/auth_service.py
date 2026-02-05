@@ -1,6 +1,9 @@
 import bcrypt
 from repositories.user_repository import UserRepository
-from core.security import verify_password , generate_token
+from core.security import verify_password, generate_token
+from repositories.login_history_repository import LoginHistoryRepository
+
+
 class AuthService:
 
     @staticmethod
@@ -30,12 +33,11 @@ class AuthService:
             "status": 201
         }
 
-    
+    # =========================
+    # LOGIN  ✅ PHẢI NẰM TRONG CLASS
+    # =========================
     @staticmethod
-    def login(email, password):
-        """
-        🔧 NEW: LOGIN FUNCTION
-        """
+    def login(email, password, ip=None, ua=None):
         if not email or not password:
             return {
                 "error": "Missing email or password",
@@ -55,22 +57,31 @@ class AuthService:
                 "status": 403
             }
 
-        # 🔧 UPDATE: verify password
+        # ❌ Sai password → log FAILED
         if not verify_password(password, user["password_hash"]):
+            LoginHistoryRepository.log(
+                user_id=user["user_id"],
+                ip_address=ip,
+                device_info=ua,
+                is_success=False
+            )
             return {
                 "error": "Invalid password",
                 "status": 401
             }
-            
+
+        # ✅ Login thành công → log SUCCESS
+        LoginHistoryRepository.log(
+            user_id=user["user_id"],
+            ip_address=ip,
+            device_info=ua,
+            is_success=True
+        )
+
         token = generate_token(str(user["user_id"]))
         return {
             "message": "Login success",
             "token": token,
-            "status": 200
-        }
-
-        return {
-            "message": "Login success",
             "user": {
                 "user_id": user["user_id"],
                 "email": user["email"]

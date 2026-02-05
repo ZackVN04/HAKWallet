@@ -14,15 +14,15 @@ class ImportWalletScreen extends StatefulWidget {
 }
 
 class _ImportWalletScreenState extends State<ImportWalletScreen> {
-  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _mnemonicController =
+      TextEditingController();
 
-  bool isMnemonic = true;
   String? error;
   bool loading = false;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _mnemonicController.dispose();
     super.dispose();
   }
 
@@ -47,7 +47,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Import your existing wallet',
+                      'Restore your wallet',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -56,52 +56,20 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'You can restore your wallet using a recovery phrase or private key.',
+                      'Enter your 12-word recovery phrase to restore '
+                      'full access to your wallet.',
                       textAlign: TextAlign.center,
                     ),
 
                     const SizedBox(height: 24),
 
-                    // ===== TOGGLE =====
-                    ToggleButtons(
-                      isSelected: [isMnemonic, !isMnemonic],
-                      onPressed: (index) {
-                        setState(() {
-                          isMnemonic = index == 0;
-                          error = null;
-                          _controller.clear();
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      constraints:
-                          const BoxConstraints(minHeight: 44),
-                      children: const [
-                        Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 24),
-                          child: Text('Mnemonic'),
-                        ),
-                        Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 24),
-                          child: Text('Private Key'),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ===== INPUT =====
+                    // ===== MNEMONIC INPUT =====
                     TextField(
-                      controller: _controller,
-                      maxLines: isMnemonic ? 3 : 1,
+                      controller: _mnemonicController,
+                      maxLines: 3,
                       decoration: InputDecoration(
-                        labelText: isMnemonic
-                            ? 'Recovery Phrase'
-                            : 'Private Key',
-                        hintText: isMnemonic
-                            ? 'word1 word2 word3 ...'
-                            : '0x...',
+                        labelText: 'Recovery Phrase',
+                        hintText: 'word1 word2 word3 ...',
                         errorText: error,
                       ),
                     ),
@@ -118,19 +86,11 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                                 error = null;
                               });
 
-                              bool ok = false;
-
-                              if (isMnemonic) {
-                                ok = await wallet.importFromMnemonic(
-                                  _controller.text,
-                                  token: token,
-                                );
-                              } else {
-                                ok = await wallet.importFromPrivateKey(
-                                  _controller.text,
-                                  token: token,
-                                );
-                              }
+                              final ok =
+                                  await wallet.importFromMnemonic(
+                                _mnemonicController.text.trim(),
+                                token: token,
+                              );
 
                               setState(() {
                                 loading = false;
@@ -143,7 +103,8 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                                 );
                               } else {
                                 setState(() {
-                                  error = 'Invalid input';
+                                  error =
+                                      'Invalid recovery phrase';
                                 });
                               }
                             },

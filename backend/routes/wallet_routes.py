@@ -31,8 +31,10 @@ def create_wallet():
             network=data.get("network")
         )
 
-        # Trả response về client
-        return jsonify(result), result["status"]
+        # ⛔️ Frontend không nên đọc status trong body
+        status = result.pop("status")
+
+        return jsonify(result), status
 
     except Exception as e:
         print("CREATE WALLET ERROR:", e)

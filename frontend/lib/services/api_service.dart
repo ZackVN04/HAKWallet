@@ -116,7 +116,7 @@ class ApiService {
     final data = jsonDecode(response.body);
 
     // ✅ FIX ĐÚNG CONTRACT BACKEND
-    return double.parse(data["balance_eth"]);
+    return (data["balance_eth"] as num).toDouble();
   }
 
   // ======================

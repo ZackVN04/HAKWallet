@@ -48,9 +48,18 @@ class WalletService:
             is_default=is_default
         )
 
+        # ✅ Map lại field cho frontend (KHÔNG lộ DB column name)
+        formatted_wallet = {
+            "id": wallet["wallet_id"],
+            "eth_address": wallet["eth_address"],
+            "network": wallet["network"],
+            "is_default": wallet["is_default"],
+            "created_at": wallet["created_at"]
+        }
+
         return {
             "message": "Wallet saved successfully",
-            "wallet": wallet,
+            "wallet": formatted_wallet,
             "status": 201
         }
 
@@ -60,10 +69,20 @@ class WalletService:
         Lấy danh sách wallet của user
         """
 
-        # Gọi repository lấy dữ liệu từ DB
         wallets = WalletRepository.get_wallets_by_user(user_id)
 
-        # Trả về list wallet (có thể rỗng)
+        # ✅ Map DB → API response (rất quan trọng cho FE)
+        formatted_wallets = [
+            {
+                "id": w["wallet_id"],
+                "eth_address": w["eth_address"],
+                "network": w["network"],
+                "is_default": w["is_default"],
+                "created_at": w["created_at"]
+            }
+            for w in wallets
+        ]
+
         return {
-            "wallets": wallets
+            "wallets": formatted_wallets
         }

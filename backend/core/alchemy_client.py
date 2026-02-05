@@ -1,94 +1,131 @@
 # core/alchemy_client.py
 
-import requests
 import os
+import requests
 
 
 class AlchemyClient:
     """
     Client chuyên dùng để gọi Alchemy JSON-RPC
-    Không chứa nghiệp vụ
+    - Không chứa nghiệp vụ
+    - Chỉ relay + validate response
     """
 
     @staticmethod
-    def get_balance(address: str) -> int:
-        """
-        Gọi eth_getBalance từ Alchemy
-        Trả về số dư ở dạng WEI (int)
-        """
-
-        # Lấy URL Alchemy từ biến môi trường
+    def _get_alchemy_url() -> str:
         alchemy_url = os.getenv("ALCHEMY_URL")
-
         if not alchemy_url:
             raise Exception("ALCHEMY_URL is not configured")
+        return alchemy_url
 
-        # Payload JSON-RPC
+    # ==================================================
+    # GET BALANCE (WEI)
+    # ==================================================
+    @staticmethod
+    def get_balance(address: str) -> int:
+        alchemy_url = AlchemyClient._get_alchemy_url()
+
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "eth_getBalance",
-            "params": [
-                address,
-                "latest"
-            ]
+            "params": [address, "latest"],
         }
 
-        # Gửi request
-        response = requests.post(alchemy_url, json=payload)
+        try:
+            response = requests.post(
+                alchemy_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=15,
+            )
+        except Exception as e:
+            raise Exception(f"Alchemy connection error: {e}")
 
         if response.status_code != 200:
-            raise Exception("Failed to connect to Alchemy")
+            raise Exception(
+                f"Alchemy HTTP error {response.status_code}: {response.text}"
+            )
 
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception:
+            raise Exception(
+                f"Alchemy returned non-JSON response: {response.text}"
+            )
 
-        if "result" not in data:
-            raise Exception("Invalid response from Alchemy")
+        if "error" in data:
+            raise Exception(
+                f"Alchemy RPC error: {data['error']}"
+            )
 
-        # Chuyển HEX → int (Wei)
-        balance_wei = int(data["result"], 16)
+        result = data.get("result")
+        if not result:
+            raise Exception(f"Alchemy invalid response: {data}")
 
-        return balance_wei
+        # HEX -> int (WEI)
+        return int(result, 16)
 
+    # ==================================================
+    # SEND RAW TRANSACTION
+    # ==================================================
     @staticmethod
     def send_raw_transaction(raw_tx: str) -> str:
-        """
-        Gọi eth_sendRawTransaction
-        Trả về tx_hash
-        """
+        alchemy_url = AlchemyClient._get_alchemy_url()
 
-        # Lấy URL Alchemy
-        alchemy_url = os.getenv("ALCHEMY_URL")
-
-        if not alchemy_url:
-            raise Exception("ALCHEMY_URL is not configured")
-
-        # Payload JSON-RPC
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "eth_sendRawTransaction",
-            "params": [
-                raw_tx
-            ]
+            "params": [raw_tx],
         }
 
-        # Gửi request lên Alchemy
-        response = requests.post(alchemy_url, json=payload)
+        try:
+            response = requests.post(
+                alchemy_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=20,
+            )
+        except Exception as e:
+            raise Exception(f"Alchemy connection error: {e}")
 
+        # =========================
+        # HTTP ERROR
+        # =========================
         if response.status_code != 200:
-            raise Exception("Failed to connect to Alchemy")
+            raise Exception(
+                f"Alchemy HTTP error {response.status_code}: {response.text}"
+            )
 
-        data = response.json()
+        # =========================
+        # PARSE JSON (SAFE)
+        # =========================
+        try:
+            data = response.json()
+        except Exception:
+            raise Exception(
+                f"Alchemy returned non-JSON response: {response.text}"
+            )
 
-        # Nếu Alchemy trả lỗi
+        # =========================
+        # RPC ERROR
+        # =========================
         if "error" in data:
-            raise Exception(data["error"]["message"])
+            # Alchemy chuẩn trả error.message
+            error = data["error"]
+            message = (
+                error.get("message")
+                if isinstance(error, dict)
+                else str(error)
+            )
+            raise Exception(f"Alchemy RPC error: {message}")
 
-        # Lấy tx_hash
+        # =========================
+        # RESULT
+        # =========================
         tx_hash = data.get("result")
-
         if not tx_hash:
-            raise Exception("Failed to send transaction")
+            raise Exception(f"Alchemy missing tx hash: {data}")
 
         return tx_hash

@@ -13,14 +13,14 @@ class TransactionModel {
     required this.timestamp,
   });
 
-  /// Parse từ backend JSON
+  /// ✅ ADD THIS
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     return TransactionModel(
-      txHash: json['tx_hash'],
-      toAddress: json['to_address'],
-      valueEth: (json['value_eth'] as num).toDouble(),
-      status: json['status'],
-      timestamp: DateTime.parse(json['timestamp']),
+      txHash: json["tx_hash"],
+      toAddress: json["to_address"],
+      valueEth: (json["value_eth"] as num).toDouble(),
+      status: json["status"],
+      timestamp: DateTime.parse(json["timestamp"]),
     );
   }
 }

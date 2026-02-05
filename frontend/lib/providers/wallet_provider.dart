@@ -8,31 +8,39 @@ import '../models/transaction_model.dart';
 /// ===============================
 /// WALLET PROVIDER
 /// - Non-custodial
-/// - Private key LUÔN ở client
-/// - Backend chỉ lưu address + relay tx
+/// - Address = identity (DB)
+/// - PrivateKey = capability (chỉ có sau UNLOCK)
 /// ===============================
 class WalletProvider extends ChangeNotifier {
   // ===== WALLET STATE =====
-  String? mnemonic;
-  EthPrivateKey? _privateKey;
-  EthereumAddress? address;
+  String? mnemonic;                // chỉ dùng khi CREATE / IMPORT
+  EthPrivateKey? _privateKey;       // chỉ có sau unlock
+  EthereumAddress? address;         // identity
 
-  /// Balance ETH (lấy từ backend)
   double balance = 0.0;
-
-  // ===== TRANSACTIONS =====
   List<TransactionModel> transactions = [];
 
-  // ======================
-  // CREATE WALLET
-  // ======================
+  // ===================================================
+  // 1️⃣ LOAD WALLET FROM BACKEND (READ-ONLY)
+  // ===================================================
+  void setAddressFromBackend(String ethAddress) {
+    address = EthereumAddress.fromHex(ethAddress);
+    _privateKey = null;
+    mnemonic = null;
+    balance = 0.0;
+    transactions.clear();
+    notifyListeners();
+  }
+
+  // ===================================================
+  // 2️⃣ CREATE WALLET (CLIENT-SIDE)
+  // ===================================================
   void createWallet({String? token}) {
     mnemonic = WalletService.generateMnemonic();
     _privateKey = WalletService.privateKeyFromMnemonic(mnemonic!);
     address = WalletService.getAddress(_privateKey!);
 
-    // Mock ban đầu
-    _setMockBalance();
+    balance = 0.0;
 
     if (token != null) {
       saveWalletToBackend(token);
@@ -41,17 +49,9 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ======================
-  // VERIFY MNEMONIC
-  // ======================
-  bool verifyMnemonic(String input) {
-    if (mnemonic == null) return false;
-    return mnemonic!.trim() == input.trim();
-  }
-
-  // ======================
-  // IMPORT WALLET
-  // ======================
+  // ===================================================
+  // 3️⃣ IMPORT MNEMONIC (NEW WALLET)
+  // ===================================================
   Future<bool> importFromMnemonic(
     String input, {
     String? token,
@@ -62,7 +62,7 @@ class WalletProvider extends ChangeNotifier {
     _privateKey = WalletService.privateKeyFromMnemonic(mnemonic!);
     address = WalletService.getAddress(_privateKey!);
 
-    _setMockBalance();
+    balance = 0.0;
 
     if (token != null) {
       await saveWalletToBackend(token);
@@ -72,20 +72,26 @@ class WalletProvider extends ChangeNotifier {
     return true;
   }
 
-  Future<bool> importFromPrivateKey(
-    String hex, {
-    String? token,
-  }) async {
+  // ===================================================
+  // 🔐 4️⃣ UNLOCK WALLET LOAD TỪ DB (BẰNG MNEMONIC)
+  // ===================================================
+  Future<bool> unlockWalletWithMnemonic(String inputMnemonic) async {
+    if (address == null) return false;
+    if (!WalletService.isValidMnemonic(inputMnemonic)) return false;
+
     try {
-      _privateKey = WalletService.privateKeyFromHex(hex);
-      address = WalletService.getAddress(_privateKey!);
-      mnemonic = null;
+      final pk =
+          WalletService.privateKeyFromMnemonic(inputMnemonic.trim());
+      final derivedAddress = WalletService.getAddress(pk);
 
-      _setMockBalance();
-
-      if (token != null) {
-        await saveWalletToBackend(token);
+      // CHECK IDENTITY
+      if (derivedAddress.hex.toLowerCase() !=
+          address!.hex.toLowerCase()) {
+        return false;
       }
+
+      _privateKey = pk; // unlock capability
+      mnemonic = null;
 
       notifyListeners();
       return true;
@@ -94,9 +100,9 @@ class WalletProvider extends ChangeNotifier {
     }
   }
 
-  // ======================
-  // SAVE WALLET → BACKEND
-  // ======================
+  // ===================================================
+  // 5️⃣ SAVE WALLET → BACKEND
+  // ===================================================
   Future<void> saveWalletToBackend(String token) async {
     if (address == null) return;
 
@@ -107,14 +113,9 @@ class WalletProvider extends ChangeNotifier {
     );
   }
 
-  // ======================
-  // BALANCE
-  // ======================
-  void _setMockBalance() {
-    balance = 1.2345;
-  }
-
-  /// GET /api/balance/:address
+  // ===================================================
+  // 6️⃣ FETCH BALANCE
+  // ===================================================
   Future<void> fetchBalanceFromBackend(String token) async {
     if (address == null) return;
 
@@ -126,71 +127,88 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ======================
-  // SEND ETH (BACKEND THẬT)
-  // ======================
-  /// Frontend ký transaction
-  /// Backend chỉ relay raw_tx
-  Future<bool> sendEthViaBackend({
-    required String toAddress,
-    required double amount,
-    required String token,
-  }) async {
-    if (_privateKey == null || address == null) return false;
-    if (amount <= 0 || amount > balance) return false;
+  // ===================================================
+  // 7️⃣ SEND ETH (NON-CUSTODIAL CORE)
+  // ===================================================
+ Future<bool> sendEthViaBackend({
+  required String toAddress,
+  required double amount,
+  required String token,
+}) async {
+  if (_privateKey == null || address == null) return false;
+  if (amount <= 0 || amount > balance) return false;
 
-    try {
-      // 1️⃣ Validate address
-      final to = EthereumAddress.fromHex(toAddress);
+  try {
+    final to = EthereumAddress.fromHex(toAddress);
 
-      // 2️⃣ Build transaction
-      final tx = Transaction(
-        to: to,
-        value: EtherAmount.fromUnitAndValue(
-          EtherUnit.ether,
-          amount,
-        ),
-        gasPrice: EtherAmount.inWei(BigInt.from(20 * 1e9)),
-        maxGas: 21000,
-      );
+    // 🔍 DEBUG CỰC KỲ QUAN TRỌNG
+    debugPrint('================ DEBUG SEND TX ================');
+    debugPrint('amount (double) = $amount');
+    debugPrint('amount.toString() = ${amount.toString()}');
 
-      // 3️⃣ SIGN TX (NON-CUSTODIAL CORE)
-      final rawTx = await WalletService.signTransaction(
-        privateKey: _privateKey!,
-        transaction: tx,
-      );
+    final valueWei = BigInt.from(
+  (amount * 1e18).round(),
+);
 
-      // 4️⃣ Send raw_tx → backend
-      final txHash = await ApiService.sendRawTransaction(
-        token: token,
-        rawTx: rawTx,
-      );
+debugPrint('amount (double) = $amount');
+debugPrint('valueWei (BigInt) = $valueWei');
 
-      // 5️⃣ Update local state (demo)
-      balance -= amount;
+    debugPrint('valueWei = $valueWei');
+    debugPrint('valueWei runtimeType = ${valueWei.runtimeType}');
+    debugPrint('================================================');
 
-      transactions.insert(
-        0,
-        TransactionModel(
-          txHash: txHash,
-          toAddress: toAddress,
-          valueEth: amount,
-          status: 'pending',
-          timestamp: DateTime.now(),
-        ),
-      );
+    final rawTx = await WalletService.signTransaction(
+      privateKey: _privateKey!,
+      from: address!,
+      to: to,
+      valueWei: valueWei,
+    );
 
-      notifyListeners();
-      return true;
-    } catch (e) {
-      print("SEND TX ERROR: $e");
-      return false;
-    }
+    final txHash = await ApiService.sendRawTransaction(
+      token: token,
+      rawTx: rawTx,
+    );
+
+    balance -= amount;
+
+    transactions.insert(
+      0,
+      TransactionModel(
+        txHash: txHash,
+        toAddress: toAddress,
+        valueEth: amount,
+        status: 'pending',
+        timestamp: DateTime.now(),
+      ),
+    );
+
+    notifyListeners();
+    return true;
+  } catch (e, stack) {
+    debugPrint("SEND TX ERROR: $e");
+    debugPrint("STACKTRACE:\n$stack");
+    return false;
+  }
+}
+
+
+  // ===================================================
+  // 8️⃣ TRANSACTION HISTORY
+  // ===================================================
+  Future<void> fetchTransactionHistory(String token) async {
+    if (address == null) return;
+
+    transactions = await ApiService.getTransactionHistory(
+      token: token,
+      address: address!.hex,
+    );
+
+    notifyListeners();
   }
 
-  // ======================
-  // RESET (LOGOUT)
-  // ======================
+  // ===================================================
+  // 9️⃣ RESET
+  // ===================================================
   void reset() {
     mnemonic = null;
     _privateKey = null;
@@ -199,22 +217,15 @@ class WalletProvider extends ChangeNotifier {
     transactions.clear();
     notifyListeners();
   }
-  // ======================
-// TRANSACTION HISTORY
-// ======================
-Future<void> fetchTransactionHistory(String token) async {
-  if (address == null) return;
 
-  transactions = await ApiService.getTransactionHistory(
-    token: token,
-    address: address!.hex,
-  );
+  // ===================================================
+  // 🔑 HELPERS
+  // ===================================================
+  bool verifyMnemonic(String input) {
+    if (mnemonic == null) return false;
+    return mnemonic!.trim().toLowerCase() ==
+        input.trim().toLowerCase();
+  }
 
-  notifyListeners();
+  bool get canSignTransaction => _privateKey != null;
 }
-
-}
-
-
-
-

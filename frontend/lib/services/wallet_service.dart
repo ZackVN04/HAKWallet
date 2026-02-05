@@ -3,20 +3,23 @@ import 'dart:typed_data';
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:bip32/bip32.dart' as bip32;
 import 'package:web3dart/web3dart.dart';
+import 'package:http/http.dart';
 import 'package:hex/hex.dart';
-import 'package:http/http.dart'; // chỉ để tạo client giả
 
 class WalletService {
+  /// RPC chỉ dùng để lấy nonce + sign (NON-CUSTODIAL)
+  static final Web3Client client = Web3Client(
+    'https://eth-sepolia.g.alchemy.com/v2/uKFKNYYLLb8pXBpqyRUmA',
+    Client(),
+  );
+
   // ======================
   // MNEMONIC
   // ======================
-  static String generateMnemonic() {
-    return bip39.generateMnemonic();
-  }
+  static String generateMnemonic() => bip39.generateMnemonic();
 
-  static bool isValidMnemonic(String mnemonic) {
-    return bip39.validateMnemonic(mnemonic.trim());
-  }
+  static bool isValidMnemonic(String mnemonic) =>
+      bip39.validateMnemonic(mnemonic.trim());
 
   // ======================
   // PRIVATE KEY
@@ -31,37 +34,46 @@ class WalletService {
     );
   }
 
-  static EthPrivateKey privateKeyFromHex(String hex) {
-    return EthPrivateKey.fromHex(hex.trim());
-  }
+  static EthPrivateKey privateKeyFromHex(String hex) =>
+      EthPrivateKey.fromHex(hex.trim());
 
-  static EthereumAddress getAddress(EthPrivateKey privateKey) {
-    return privateKey.address;
-  }
+  static EthereumAddress getAddress(EthPrivateKey pk) => pk.address;
 
   // ======================
-  // SIGN RAW TRANSACTION (ĐÚNG WEB3DART)
+  // ✅ SIGN RAW TRANSACTION (FINAL – ĐÚNG CHUẨN ETH)
   // ======================
-  /// Frontend ký transaction (non-custodial)
-  /// Backend chỉ nhận raw_tx
   static Future<String> signTransaction({
     required EthPrivateKey privateKey,
-    required Transaction transaction,
+    required EthereumAddress from,
+    required EthereumAddress to,
+    required BigInt valueWei,
   }) async {
-    // 1️⃣ Tạo Web3Client giả (KHÔNG gửi request)
-    final client = Web3Client(
-      'https://rpc.sepolia.org', // dummy, KHÔNG dùng để gửi
-      Client(),
+    // 1️⃣ NONCE
+    final nonce = await client.getTransactionCount(
+      from,
+      atBlock: const BlockNum.pending(),
     );
 
-    // 2️⃣ Serialize + sign transaction
-    final Uint8List signedTx = await client.signTransaction(
+    // 2️⃣ BUILD TX (❗ KHÔNG DÙNG DOUBLE)
+    final tx = Transaction(
+      from: from,
+      to: to,
+      value: EtherAmount.inWei(valueWei),
+      gasPrice: EtherAmount.inWei(
+        BigInt.parse('20000000000'), // 20 gwei
+      ),
+      maxGas: 21000,
+      nonce: nonce,
+    );
+
+    // 3️⃣ SIGN
+    final signedTx = await client.signTransaction(
       privateKey,
-      transaction,
+      tx,
       chainId: 11155111, // Sepolia
     );
 
-    // 3️⃣ Uint8List → hex
+    // 4️⃣ HEX
     return '0x${HEX.encode(signedTx)}';
   }
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:web3dart/web3dart.dart';
+
 import '../../providers/wallet_provider.dart';
 import '../../providers/user_provider.dart';
+import '../wallet/unlock_wallet_dialog.dart';
 
 class SendScreen extends StatefulWidget {
   const SendScreen({super.key});
@@ -13,6 +16,7 @@ class SendScreen extends StatefulWidget {
 class _SendScreenState extends State<SendScreen> {
   final _toController = TextEditingController();
   final _amountController = TextEditingController();
+
   String? error;
   bool loading = false;
 
@@ -40,7 +44,6 @@ class _SendScreenState extends State<SendScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ===== BALANCE =====
                     Text(
                       'Available Balance',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -53,10 +56,8 @@ class _SendScreenState extends State<SendScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const Divider(height: 32),
 
-                    // ===== TO ADDRESS =====
                     TextField(
                       controller: _toController,
                       decoration: InputDecoration(
@@ -64,34 +65,68 @@ class _SendScreenState extends State<SendScreen> {
                         errorText: error,
                       ),
                     ),
-
                     const SizedBox(height: 16),
 
-                    // ===== AMOUNT =====
                     TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Amount (ETH)',
-                      ),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration:
+                          const InputDecoration(labelText: 'Amount (ETH)'),
                     ),
-
                     const SizedBox(height: 24),
 
-                    // ===== SEND BUTTON =====
                     ElevatedButton(
                       onPressed: loading
                           ? null
                           : () async {
                               final token =
                                   context.read<UserProvider>().token;
-
-                              // ⛔ FIX NULL-SAFETY Ở ĐÂY
                               if (token == null) {
                                 setState(() {
                                   error = 'User not authenticated';
+                                });
+                                return;
+                              }
+
+                              // 🔐 UNLOCK FLOW
+                              if (!wallet.canSignTransaction) {
+                                final unlocked =
+                                    await showUnlockWalletDialog(context);
+                                if (!unlocked ||
+                                    !wallet.canSignTransaction) {
+                                  setState(() {
+                                    error = 'Wallet is still locked';
+                                  });
+                                  return;
+                                }
+                              }
+
+                              // Validate address
+                              EthereumAddress to;
+                              try {
+                                to = EthereumAddress.fromHex(
+                                  _toController.text.trim(),
+                                );
+                              } catch (_) {
+                                setState(() {
+                                  error = 'Invalid Ethereum address';
+                                });
+                                return;
+                              }
+
+                              final amount =
+                                  double.tryParse(_amountController.text);
+                              if (amount == null || amount <= 0) {
+                                setState(() {
+                                  error = 'Invalid amount';
+                                });
+                                return;
+                              }
+
+                              if (amount > wallet.balance) {
+                                setState(() {
+                                  error = 'Insufficient balance';
                                 });
                                 return;
                               }
@@ -103,11 +138,9 @@ class _SendScreenState extends State<SendScreen> {
 
                               final ok =
                                   await wallet.sendEthViaBackend(
-                                toAddress: _toController.text,
-                                amount: double.tryParse(
-                                        _amountController.text) ??
-                                    0,
-                                token: token, // ✅ String (non-null)
+                                toAddress: to.hex,
+                                amount: amount,
+                                token: token,
                               );
 
                               setState(() {
@@ -118,8 +151,7 @@ class _SendScreenState extends State<SendScreen> {
                                 Navigator.pop(context);
                               } else {
                                 setState(() {
-                                  error =
-                                      'Invalid address or insufficient balance';
+                                  error = 'Failed to send transaction';
                                 });
                               }
                             },

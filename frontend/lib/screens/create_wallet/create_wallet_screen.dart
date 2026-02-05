@@ -23,7 +23,7 @@ class CreateWalletScreen extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 700),
             child: wallet.mnemonic == null
                 ? _buildCreate(context)
-                : _buildResult(context, wallet),
+                : _buildBackup(context, wallet),
           ),
         ),
       ),
@@ -31,7 +31,7 @@ class CreateWalletScreen extends StatelessWidget {
   }
 
   // ======================
-  // STEP 1: CREATE
+  // STEP 1: CREATE WALLET
   // ======================
   Widget _buildCreate(BuildContext context) {
     final token = context.read<UserProvider>().token;
@@ -52,12 +52,11 @@ class CreateWalletScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'This wallet is non-custodial.\nYou are responsible for your recovery phrase.',
+              'This is a non-custodial wallet.\nOnly you control your keys.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
 
-            /// ✅ FIX: truyền token
             ElevatedButton(
               onPressed: () {
                 context
@@ -85,9 +84,9 @@ class CreateWalletScreen extends StatelessWidget {
   }
 
   // ======================
-  // STEP 2: MNEMONIC
+  // STEP 2: BACKUP MNEMONIC
   // ======================
-  Widget _buildResult(BuildContext context, WalletProvider wallet) {
+  Widget _buildBackup(BuildContext context, WalletProvider wallet) {
     final words = wallet.mnemonic!.split(' ');
 
     return Card(
@@ -105,7 +104,7 @@ class CreateWalletScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Write down these 12 words in order and keep them safe.',
+              'Write down these 12 words and keep them somewhere safe.',
             ),
             const SizedBox(height: 20),
 

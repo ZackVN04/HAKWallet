@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/user_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../core/routes.dart';
 import '../../widgets/responsive_layout.dart';
 import '../../services/api_service.dart';
@@ -30,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.read<UserProvider>();
+    final walletProvider = context.read<WalletProvider>();
 
     return Scaffold(
       body: ResponsiveLayout(
@@ -106,7 +108,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               return;
                             }
 
-                            // 🔑 Token đã được set trong UserProvider
                             final token = user.token;
                             if (token == null) {
                               setState(() {
@@ -115,20 +116,28 @@ class _LoginScreenState extends State<LoginScreen> {
                               return;
                             }
 
-                            // 🔎 CHECK USER WALLETS
+                            // 🔥 LOAD WALLET FROM BACKEND
                             final wallets =
                                 await ApiService.getUserWallets(token);
 
                             if (!mounted) return;
 
                             if (wallets.isNotEmpty) {
-                              // ✅ Có ví → vào HOME
+                              final ethAddress =
+                                  wallets.first["eth_address"];
+
+                              walletProvider
+                                  .setAddressFromBackend(ethAddress);
+
+                              // OPTIONAL: auto fetch balance
+                              await walletProvider
+                                  .fetchBalanceFromBackend(token);
+
                               Navigator.pushReplacementNamed(
                                 context,
                                 AppRoutes.home,
                               );
                             } else {
-                              // ❌ Chưa có ví → CREATE WALLET
                               Navigator.pushReplacementNamed(
                                 context,
                                 AppRoutes.createWallet,

@@ -34,6 +34,6 @@ class BalanceService:
         # 4️⃣ Trả kết quả
         return {
             "address": address,
-            "balance_eth": str(balance_eth),
+            "balance_eth": balance_eth,
             "status": 200
         }
