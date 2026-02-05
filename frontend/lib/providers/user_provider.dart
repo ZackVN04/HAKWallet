@@ -1,39 +1,42 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 class UserProvider extends ChangeNotifier {
   String? userId;
   String? email;
+  String? token;
   bool isLoggedIn = false;
 
-  /// MOCK LOGIN (backend sẽ thay sau)
+  // ======================
+  // LOGIN
+  // ======================
   Future<bool> login(String inputEmail, String password) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    final res = await ApiService.login(inputEmail, password);
 
-    // MOCK validate
-    if (inputEmail.isEmpty || password.isEmpty) return false;
+    if (res["token"] == null) return false;
 
-    userId = 'mock-user-id';
-    email = inputEmail;
+    token = res["token"];
+    userId = res["user"]["user_id"].toString();
+    email = res["user"]["email"];
     isLoggedIn = true;
+
     notifyListeners();
     return true;
+  }
+
+  // ======================
+  // REGISTER
+  // ======================
+  Future<bool> register(String email, String password) async {
+    final res = await ApiService.register(email, password);
+    return res["status"] == 201;
   }
 
   void logout() {
     userId = null;
     email = null;
+    token = null;
     isLoggedIn = false;
     notifyListeners();
   }
-  Future<bool> register(String email, String password) async {
-  await Future.delayed(const Duration(milliseconds: 500));
-
-  if (email.isEmpty || password.length < 6) {
-    return false;
-  }
-
-  // MOCK register success
-  return true;
-}
-
 }

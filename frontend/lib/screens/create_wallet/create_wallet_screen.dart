@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/wallet_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../core/routes.dart';
 
 class CreateWalletScreen extends StatelessWidget {
@@ -32,6 +34,8 @@ class CreateWalletScreen extends StatelessWidget {
   // STEP 1: CREATE
   // ======================
   Widget _buildCreate(BuildContext context) {
+    final token = context.read<UserProvider>().token;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -51,12 +55,14 @@ class CreateWalletScreen extends StatelessWidget {
               'This wallet is non-custodial.\nYou are responsible for your recovery phrase.',
               textAlign: TextAlign.center,
             ),
-
             const SizedBox(height: 32),
 
+            /// ✅ FIX: truyền token
             ElevatedButton(
               onPressed: () {
-                context.read<WalletProvider>().createWallet();
+                context
+                    .read<WalletProvider>()
+                    .createWallet(token: token);
               },
               child: const Text('Create New Wallet'),
             ),
@@ -101,10 +107,8 @@ class CreateWalletScreen extends StatelessWidget {
             const Text(
               'Write down these 12 words in order and keep them safe.',
             ),
-
             const SizedBox(height: 20),
 
-            // ===== MNEMONIC GRID =====
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -147,9 +151,9 @@ class CreateWalletScreen extends StatelessWidget {
 
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(
+                Navigator.pushReplacementNamed(
                   context,
-                  AppRoutes.verifyMnemonic,
+                  AppRoutes.home,
                 );
               },
               child: const Text("I've backed up my phrase"),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/wallet_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../core/routes.dart';
 
 class ImportWalletScreen extends StatefulWidget {
@@ -13,6 +15,7 @@ class ImportWalletScreen extends StatefulWidget {
 
 class _ImportWalletScreenState extends State<ImportWalletScreen> {
   final TextEditingController _controller = TextEditingController();
+
   bool isMnemonic = true;
   String? error;
   bool loading = false;
@@ -26,6 +29,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
   @override
   Widget build(BuildContext context) {
     final wallet = context.read<WalletProvider>();
+    final token = context.read<UserProvider>().token;
 
     return Scaffold(
       appBar: AppBar(
@@ -115,14 +119,17 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                               });
 
                               bool ok = false;
+
                               if (isMnemonic) {
-                                ok = await wallet
-                                    .importFromMnemonic(
-                                        _controller.text);
+                                ok = await wallet.importFromMnemonic(
+                                  _controller.text,
+                                  token: token,
+                                );
                               } else {
-                                ok = await wallet
-                                    .importFromPrivateKey(
-                                        _controller.text);
+                                ok = await wallet.importFromPrivateKey(
+                                  _controller.text,
+                                  token: token,
+                                );
                               }
 
                               setState(() {

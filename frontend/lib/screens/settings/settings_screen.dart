@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../providers/user_provider.dart'; // ✅ thêm
 import '../../providers/theme_provider.dart';
+import '../../core/routes.dart'; // ✅ thêm
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -10,6 +12,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletProvider>();
     final theme = context.watch<ThemeProvider>();
+    final user = context.read<UserProvider>(); // ✅ thêm
 
     return Scaffold(
       appBar: AppBar(
@@ -24,7 +27,7 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ======================
-                // NETWORK
+                // NETWORK (GIỮ NGUYÊN)
                 // ======================
                 Card(
                   child: Padding(
@@ -49,7 +52,7 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // ======================
-                // APPEARANCE (SAFE)
+                // APPEARANCE (GIỮ NGUYÊN)
                 // ======================
                 Card(
                   child: Padding(
@@ -83,7 +86,7 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // ======================
-                // WALLET INFO
+                // WALLET INFO (GIỮ NGUYÊN)
                 // ======================
                 Card(
                   child: Padding(
@@ -108,14 +111,19 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // ======================
-                // LOGOUT (SAFE)
+                // LOGOUT (FIX DUY NHẤT)
                 // ======================
                 ElevatedButton(
                   onPressed: () {
+                    // 🔥 reset state
                     wallet.reset();
-                    Navigator.popUntil(
+                    user.logout();
+
+                    // 🔥 clear stack → login
+                    Navigator.pushNamedAndRemoveUntil(
                       context,
-                      (route) => route.isFirst,
+                      AppRoutes.login,
+                      (route) => false,
                     );
                   },
                   style: ElevatedButton.styleFrom(
