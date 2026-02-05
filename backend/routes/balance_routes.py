@@ -3,6 +3,8 @@
 from flask import Blueprint, jsonify
 from services.balance_service import BalanceService
 from core.jwt_middleware import jwt_required
+from core.alchemy_client import AlchemyClient
+
 
 # Blueprint cho balance API
 balance_bp = Blueprint("balance", __name__)
